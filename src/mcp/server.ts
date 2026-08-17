@@ -250,7 +250,11 @@ export async function startMcpServer(version: string): Promise<void> {
 
   server.registerTool(
     "mobile_open_url",
-    { description: "Open a URL or deep link.", inputSchema: { url: z.string() } },
+    {
+      description:
+        "Open a URL or deep link. Use this to jump straight to a screen that would otherwise take several taps to reach, or to test that a deep link resolves to the right place.",
+      inputSchema: { url: z.string() },
+    },
     (args) =>
       guard(async () => {
         const { driver } = await attachDriverEnsuringAgent();

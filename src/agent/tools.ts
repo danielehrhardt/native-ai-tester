@@ -241,7 +241,8 @@ export function createDeviceTools(context: AgentContext) {
 
     betaTool({
       name: "open_url",
-      description: "Open a URL or deep link.",
+      description:
+        "Open a URL or deep link. Use this to jump straight to a screen that would otherwise take several taps to reach, or to test that a deep link resolves to the right place.",
       inputSchema: {
         type: "object",
         properties: { url: { type: "string" } },

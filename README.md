@@ -333,7 +333,7 @@ cheap enough to run on every step.
 ```bash
 npm install
 npm run build
-npm test              # 116 tests, no device required
+npm test              # 122 tests, no device required
 npm run typecheck
 node dist/cli.js --help
 ```
