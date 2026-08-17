@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["20.10", "22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      # The suite covers the pure logic — coordinates, tree cleaning, grounding,
+      # both tree parsers — so it needs no device and runs on Linux too.
+      - run: npm test
+
+  cli:
+    name: cli smoke test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: The CLI starts and reports its own state
+        run: |
+          node dist/cli.js --help
+          node dist/cli.js version
+          node dist/cli.js devices --json
+          # doctor exits 4 when something is genuinely missing; on a runner with
+          # Xcode present it should find simulators and pass.
+          node dist/cli.js doctor
+      - name: The installer is valid POSIX sh
+        run: sh -n install.sh
+
+  package:
+    name: package contents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: The published tarball carries the CLI, the skill and the installer
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const files = require("./pack.json")[0].files.map((f) => f.path);
+            const required = [
+              "dist/cli.js",
+              "skills/mobile-testing/SKILL.md",
+              "install.sh",
+              "README.md",
+              "LICENSE",
+            ];
+            const missing = required.filter((f) => !files.includes(f));
+            if (missing.length) {
+              console.error("missing from the package:", missing.join(", "));
+              process.exit(1);
+            }
+            console.log(`${files.length} files, all required entries present`);
+          '

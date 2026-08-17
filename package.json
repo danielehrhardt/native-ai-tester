@@ -1,0 +1,73 @@
+{
+  "name": "native-ai-tester",
+  "version": "0.1.0",
+  "description": "Automated mobile testing tool for apps and games — drive real iOS & Android devices from your terminal or coding agent. No locators, no SDK, no account.",
+  "keywords": [
+    "mobile-testing",
+    "ios",
+    "android",
+    "appium",
+    "webdriveragent",
+    "test-automation",
+    "ai",
+    "agent",
+    "mcp",
+    "react-native",
+    "flutter",
+    "unity",
+    "e2e"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "bin": {
+    "nat": "dist/cli.js",
+    "native-ai-tester": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills",
+    "install.sh",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.117.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "commander": "^15.0.0",
+    "fast-xml-parser": "^5.11.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/native-ai-tester/native-ai-tester.git"
+  },
+  "homepage": "https://github.com/native-ai-tester/native-ai-tester#readme",
+  "bugs": {
+    "url": "https://github.com/native-ai-tester/native-ai-tester/issues"
+  }
+}

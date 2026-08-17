@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.omc/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+/tmp/
+/.vitest/
+
+# Local planning notes — not part of the public repo
+idea.md
+sample-project.md
