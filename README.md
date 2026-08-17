@@ -51,7 +51,7 @@ Or with npm directly:
 npm install -g native-ai-tester
 ```
 
-Requires Node 20.10+. Then:
+Requires Node 20.19+. Then:
 
 ```bash
 nat doctor          # checks your toolchain and says exactly what is missing

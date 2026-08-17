@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isNewer, version } from "../src/core/version.js";
+import { isNewer, meetsMinimumNode, minimumNode, version } from "../src/core/version.js";
 
 describe("isNewer", () => {
   it("compares each component numerically, not as text", () => {
@@ -26,5 +26,25 @@ describe("isNewer", () => {
 describe("version", () => {
   it("reads the installed version from the package manifest", () => {
     expect(version()).toMatch(/^\d+\.\d+\.\d+/);
+  });
+});
+
+describe("the supported Node floor", () => {
+  it("comes from package.json, so engines and the checks cannot drift apart", () => {
+    const [major, minor] = minimumNode();
+    expect(major).toBeGreaterThanOrEqual(20);
+    expect(Number.isInteger(minor)).toBe(true);
+  });
+
+  it("accepts the version actually running these tests", () => {
+    expect(meetsMinimumNode()).toBe(true);
+  });
+
+  it("compares minor and patch, not just the major", () => {
+    const [major, minor, patch] = minimumNode();
+    expect(meetsMinimumNode(`${major}.${minor}.${patch}`)).toBe(true);
+    expect(meetsMinimumNode(`${major}.${minor - 1}.99`)).toBe(false);
+    expect(meetsMinimumNode(`${major - 1}.99.99`)).toBe(false);
+    expect(meetsMinimumNode(`${major + 1}.0.0`)).toBe(true);
   });
 });

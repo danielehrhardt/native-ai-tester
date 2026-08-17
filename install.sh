@@ -42,7 +42,7 @@ esac
 if ! command -v node >/dev/null 2>&1; then
   say ""
   die "$(cat <<EOF
-Node.js 20.10 or newer is required and was not found.
+Node.js 20.19 or newer is required and was not found.
 
 Install it, then re-run this script:
   macOS   brew install node
@@ -54,8 +54,8 @@ fi
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
 NODE_MINOR="$(node -p 'process.versions.node.split(".")[1]' 2>/dev/null || echo 0)"
-if [ "$NODE_MAJOR" -lt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -lt 10 ]; }; then
-  die "Node.js 20.10 or newer is required (found $(node -v)). Upgrade Node and re-run this script."
+if [ "$NODE_MAJOR" -lt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -lt 19 ]; }; then
+  die "Node.js 20.19 or newer is required (found $(node -v)). Upgrade Node and re-run this script."
 fi
 
 command -v npm >/dev/null 2>&1 || die "npm was not found alongside Node.js. Reinstall Node.js and try again."

@@ -15,6 +15,7 @@ import { listDevices } from "../drivers/index.js";
 import { detectTeamIds, isSourceReady } from "../drivers/ios/wda-manager.js";
 import { isVisionConfigured } from "../llm/vision.js";
 import { paths } from "../core/paths.js";
+import { meetsMinimumNode, minimumNode } from "../core/version.js";
 
 type Status = "ok" | "warn" | "fail" | "skip";
 
@@ -51,13 +52,13 @@ export function registerDoctorCommand(program: Command): void {
 }
 
 function checkNode(): Check {
-  const [major] = process.versions.node.split(".").map(Number);
-  const ok = (major ?? 0) >= 20;
+  const ok = meetsMinimumNode();
+  const [major, minor, patch] = minimumNode();
   return {
     name: "Node.js",
     status: ok ? "ok" : "fail",
     detail: `v${process.versions.node}`,
-    ...(ok ? {} : { fix: "native-ai-tester needs Node 20.10 or newer." }),
+    ...(ok ? {} : { fix: `native-ai-tester needs Node ${major}.${minor}.${patch} or newer.` }),
   };
 }
 
