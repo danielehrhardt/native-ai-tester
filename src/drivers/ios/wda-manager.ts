@@ -86,7 +86,7 @@ async function download(url: string, version: string): Promise<Buffer> {
     const response = await fetch(url, {
       redirect: "follow",
       headers: {
-        "user-agent": `native-ai-tester (+https://github.com/native-ai-tester/native-ai-tester)`,
+        "user-agent": `native-ai-tester (+https://github.com/danielehrhardt/native-ai-tester)`,
         accept: "application/octet-stream",
       },
     }).catch(() => undefined);

@@ -64,12 +64,13 @@
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
+  "author": "Daniel Ehrhardt <daniel.ehrhardt@codext.de>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/native-ai-tester/native-ai-tester.git"
+    "url": "git+https://github.com/danielehrhardt/native-ai-tester.git"
   },
-  "homepage": "https://github.com/native-ai-tester/native-ai-tester#readme",
+  "homepage": "https://github.com/danielehrhardt/native-ai-tester#readme",
   "bugs": {
-    "url": "https://github.com/native-ai-tester/native-ai-tester/issues"
+    "url": "https://github.com/danielehrhardt/native-ai-tester/issues"
   }
 }

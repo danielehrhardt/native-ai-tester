@@ -42,7 +42,7 @@ Anthropic, OpenAI, or something on localhost.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/native-ai-tester/native-ai-tester/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/danielehrhardt/native-ai-tester/main/install.sh | sh
 ```
 
 Or with npm directly:

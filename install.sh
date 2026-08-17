@@ -1,7 +1,7 @@
 #!/bin/sh
 # native-ai-tester installer
 #
-#   curl -fsSL https://raw.githubusercontent.com/native-ai-tester/native-ai-tester/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/danielehrhardt/native-ai-tester/main/install.sh | sh
 #
 # Options (environment variables):
 #   NAT_VERSION=0.2.0   install a specific version instead of the latest
@@ -134,5 +134,5 @@ ${BOLD}Next steps${RESET}
   nat action tap --x 500 --y 320    act on coordinates from \`nat screen\`
 
 Point your coding agent at the CLI and it drives the device for you.
-Docs: https://github.com/native-ai-tester/native-ai-tester
+Docs: https://github.com/danielehrhardt/native-ai-tester
 EOF
