@@ -19,6 +19,7 @@ import { readScreen } from "../core/screen.js";
 import { renderSnapshot } from "../core/tree.js";
 import { toDevicePoint } from "../core/coords.js";
 import { attachDriverEnsuringAgent, connectDevice, listDevices } from "../drivers/index.js";
+import { drawMarks, markedElements } from "../core/annotate.js";
 import { readSession } from "../core/session.js";
 import { resolveTarget, directionToSwipe } from "../commands/shared.js";
 import type { AlertAction, Driver, Point } from "../core/types.js";
@@ -32,6 +33,12 @@ type TextResult = {
 const target = {
   x: z.number().min(0).max(1000).optional().describe("Horizontal tap position, 0-1000 (from mobile_screen)."),
   y: z.number().min(0).max(1000).optional().describe("Vertical tap position, 0-1000."),
+  mark: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("The number drawn on a marked screenshot — the simplest way to act on something you can see."),
   description: z
     .string()
     .optional()
@@ -104,14 +111,33 @@ export async function startMcpServer(version: string): Promise<void> {
     "mobile_screenshot",
     {
       description:
-        "Capture the screen as an image. Use only when the element tree is empty or cannot answer the question — a game, a canvas, a visual defect.",
-      inputSchema: {},
+        "Capture the screen as an image. Use when the element tree is empty or cannot answer the question — a game, a canvas, a chart, a visual defect. Set `marks` to draw a number on every tap target; you can then act on what you see with the `mark` argument of mobile_tap and friends, without working out any coordinates.",
+      inputSchema: {
+        marks: z
+          .boolean()
+          .optional()
+          .describe("Draw a numbered box on every tap target."),
+      },
     },
-    () =>
+    (args) =>
       guard(async () => {
         const { driver } = await attachDriverEnsuringAgent();
         const image = await driver.screenshot();
-        return { content: [{ type: "image" as const, data: image.toString("base64"), mimeType: "image/png" }] };
+        if (args.marks !== true) {
+          return { content: [{ type: "image" as const, data: image.toString("base64"), mimeType: "image/png" }] };
+        }
+
+        const snapshot = await readScreen(driver, { withApp: false });
+        const marked = drawMarks(image, snapshot.elements);
+        const legend = markedElements(snapshot.elements)
+          .map((node) => `${node.mark}. ${node.role}${node.label ? ` ${JSON.stringify(node.label)}` : ""}`)
+          .join("\n");
+        return {
+          content: [
+            { type: "image" as const, data: marked.toString("base64"), mimeType: "image/png" },
+            { type: "text" as const, text: `Marks on this screenshot:\n${legend}` },
+          ],
+        };
       }),
   );
 
@@ -181,10 +207,10 @@ export async function startMcpServer(version: string): Promise<void> {
       guard(async () => {
         const { driver } = await attachDriverEnsuringAgent();
         let clearLength: number | undefined;
-        if (args.x !== undefined || args.description !== undefined) {
+        if (args.x !== undefined || args.mark !== undefined || args.description !== undefined) {
           const resolved = await resolveTarget(driver, targetOptions(args));
           await driver.tap(resolved.point);
-          clearLength = resolved.grounding?.element?.value?.length;
+          clearLength = (resolved.element ?? resolved.grounding?.element)?.value?.length;
         }
         await driver.typeText(args.text, {
           ...(args.clear ? { clear: true } : {}),
@@ -302,25 +328,26 @@ function requireBundleId(bundleId: string | undefined): string {
   return bundleId;
 }
 
-function targetOptions(args: { x?: number; y?: number; description?: string }) {
+function targetOptions(args: { x?: number; y?: number; mark?: number; description?: string }) {
   return {
     ...(args.x !== undefined ? { x: args.x } : {}),
     ...(args.y !== undefined ? { y: args.y } : {}),
+    ...(args.mark !== undefined ? { mark: args.mark } : {}),
     ...(args.description ? { description: args.description } : {}),
   };
 }
 
 async function gesturePoints(
   driver: Driver,
-  args: { x?: number; y?: number; x2?: number; y2?: number; direction?: string; description?: string },
+  args: { x?: number; y?: number; mark?: number; x2?: number; y2?: number; direction?: string; description?: string },
 ): Promise<{ from: Point; to: Point }> {
   if (args.x !== undefined && args.y !== undefined && args.x2 !== undefined && args.y2 !== undefined) {
     return { from: { x: args.x, y: args.y }, to: { x: args.x2, y: args.y2 } };
   }
   const dir = (args.direction ?? "up") as "up" | "down" | "left" | "right";
-  if (args.description) {
-    const resolved = await resolveTarget(driver, { description: args.description });
-    const box = resolved.grounding?.element?.rect;
+  if (args.description !== undefined || args.mark !== undefined) {
+    const resolved = await resolveTarget(driver, targetOptions(args));
+    const box = (resolved.element ?? resolved.grounding?.element)?.rect;
     const span = box ? Math.max(120, Math.min(box.width, box.height) * 0.8) : 400;
     return around(resolved.relative, dir, span);
   }

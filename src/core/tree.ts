@@ -240,7 +240,12 @@ export function renderSnapshot(snapshot: ScreenSnapshot): string {
     ` · ${snapshot.screen.width}x${snapshot.screen.height}pt` +
     ` · ${snapshot.stats.keptNodes}/${snapshot.stats.rawNodes} elements`;
 
-  const lines: string[] = [header, "coordinates are relative 0-1000 (x,y = tap point)"];
+  const marked = flatten(snapshot.elements).filter((node) => node.mark !== undefined).length;
+  const lines: string[] = [
+    header,
+    "coordinates are relative 0-1000 (x,y = tap point)" +
+      (marked > 0 ? `; #n = the number drawn on \`nat screenshot --marks\`, act on it with --mark n` : ""),
+  ];
   if (snapshot.elements.length === 0) {
     lines.push("(no elements — the screen exposes no usable tree; use `nat screenshot` and target by description)");
     return lines.join("\n");
@@ -252,13 +257,15 @@ export function renderSnapshot(snapshot: ScreenSnapshot): string {
 }
 
 export function renderElement(node: UiElement): string {
-  const parts = [`[${node.id}]`, node.role];
+  // `#12` is the number drawn on a marked screenshot — the shared vocabulary
+  // between what a model sees and what it can act on.
+  const parts = [`[${node.id}]`, ...(node.mark !== undefined ? [`#${node.mark}`] : []), node.role];
   if (node.label) parts.push(JSON.stringify(truncate(node.label, 120)));
   if (node.value && node.value !== node.label) parts.push(`=${JSON.stringify(truncate(node.value, 80))}`);
   if (node.placeholder && node.placeholder !== node.label) {
     parts.push(`placeholder=${JSON.stringify(truncate(node.placeholder, 60))}`);
   }
-  if (node.identifier && node.identifier !== node.label) parts.push(`#${truncate(node.identifier, 60)}`);
+  if (node.identifier && node.identifier !== node.label) parts.push(`id=${truncate(node.identifier, 60)}`);
   parts.push(`@${node.center.x},${node.center.y}`);
   parts.push(`${round(node.rect.width)}x${round(node.rect.height)}`);
   if (!node.enabled) parts.push("disabled");

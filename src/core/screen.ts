@@ -3,6 +3,7 @@
  */
 
 import { cleanTree, countNodes } from "./tree.js";
+import { assignMarks } from "./annotate.js";
 import type { Driver, ScreenSnapshot, UiElement } from "./types.js";
 
 export interface ReadScreenOptions {
@@ -12,6 +13,14 @@ export interface ReadScreenOptions {
   maxNodes?: number;
   /** Skip the foreground-app lookup when the caller does not need it. */
   withApp?: boolean;
+  /**
+   * Number the tap targets. On by default: the numbers cost a couple of tokens
+   * per line and are what let a model look at a marked screenshot, pick a
+   * number, and act on it.
+   */
+  marks?: boolean;
+  /** Cap on how many elements get numbered, so a marked image stays readable. */
+  maxMarks?: number;
 }
 
 export async function readScreen(driver: Driver, options: ReadScreenOptions = {}): Promise<ScreenSnapshot> {
@@ -20,10 +29,13 @@ export async function readScreen(driver: Driver, options: ReadScreenOptions = {}
   const normalized = driver.normalizeSource(raw, screen);
   const rawNodes = countNodes(normalized);
 
-  const elements = cleanTree(normalized, {
+  const cleaned = cleanTree(normalized, {
     full: options.full,
     maxNodes: options.maxNodes ?? 400,
   });
+
+  const elements =
+    options.marks === false ? cleaned : assignMarks(cleaned, { max: options.maxMarks ?? 60 });
 
   const app = options.withApp === false ? undefined : await driver.currentApp().catch(() => undefined);
 

@@ -11,6 +11,7 @@ import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema";
 import { setTimeout as delay } from "node:timers/promises";
 import { readScreen } from "../core/screen.js";
 import { renderSnapshot } from "../core/tree.js";
+import { drawMarks, markedElements } from "../core/annotate.js";
 import { toDevicePoint } from "../core/coords.js";
 import { isNatError } from "../core/errors.js";
 import type { AlertAction, Driver, Point } from "../core/types.js";
@@ -44,6 +45,11 @@ export interface AgentContext {
 const TARGET_PROPERTIES = {
   x: { type: "number", description: "Horizontal tap position in the 0-1000 space." },
   y: { type: "number", description: "Vertical tap position in the 0-1000 space." },
+  mark: {
+    type: "number",
+    description:
+      "The number drawn on a marked screenshot. The simplest way to act on something you can see — no coordinates to work out.",
+  },
   description: {
     type: "string",
     description:
@@ -68,15 +74,40 @@ export function createDeviceTools(context: AgentContext) {
     betaTool({
       name: "take_screenshot",
       description:
-        "Capture the screen as an image. Use this only when the element tree is empty or does not describe what you need to see — a game, a canvas, a chart, a rendering bug.",
-      inputSchema: { type: "object", properties: {}, additionalProperties: false },
-      run: async () => {
+        "Capture the screen as an image. Use when the element tree is empty or does not describe what you need to judge — a game, a canvas, a chart, a rendering bug, anything about how it *looks*. Set `marks` to draw a number on every tap target, then act on what you see with the `mark` argument of tap, swipe and type_text.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          marks: { type: "boolean", description: "Draw a numbered box on every tap target." },
+        },
+        additionalProperties: false,
+      },
+      run: async (input) => {
         const image = await context.driver.screenshot();
-        push(context, "take_screenshot", {}, `captured ${image.length} bytes`, true);
+        if (input.marks !== true) {
+          push(context, "take_screenshot", {}, `captured ${image.length} bytes`, true);
+          return [
+            {
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: "image/png" as const, data: image.toString("base64") },
+            },
+          ];
+        }
+
+        const snapshot = await readScreen(context.driver, { withApp: false });
+        const marked = drawMarks(image, snapshot.elements);
+        const targets = markedElements(snapshot.elements);
+        push(context, "take_screenshot", { marks: true }, `captured with ${targets.length} marks`, true);
         return [
           {
             type: "image" as const,
-            source: { type: "base64" as const, media_type: "image/png" as const, data: image.toString("base64") },
+            source: { type: "base64" as const, media_type: "image/png" as const, data: marked.toString("base64") },
+          },
+          {
+            type: "text" as const,
+            text: `Marks on this screenshot:\n${targets
+              .map((node) => `${node.mark}. ${node.role}${node.label ? ` ${JSON.stringify(node.label)}` : ""}`)
+              .join("\n")}`,
           },
         ];
       },
@@ -173,12 +204,12 @@ export function createDeviceTools(context: AgentContext) {
       },
       run: async (input) =>
         record(context, "type_text", input as Record<string, unknown>, async () => {
-          const hasTarget = input.x !== undefined || input.description !== undefined;
+          const hasTarget = input.x !== undefined || input.mark !== undefined || input.description !== undefined;
           let clearLength: number | undefined;
           if (hasTarget) {
             const target = await resolveTarget(context.driver, toTargetOptions(input));
             await context.driver.tap(target.point);
-            clearLength = target.grounding?.element?.value?.length;
+            clearLength = (target.element ?? target.grounding?.element)?.value?.length;
           }
           await context.driver.typeText(input.text, {
             ...(input.clear ? { clear: true } : {}),
@@ -324,26 +355,27 @@ function requireBundleId(bundleId: string | undefined): string {
   return bundleId;
 }
 
-function toTargetOptions(input: { x?: number; y?: number; description?: string }) {
+function toTargetOptions(input: { x?: number; y?: number; mark?: number; description?: string }) {
   return {
     ...(input.x !== undefined ? { x: input.x } : {}),
     ...(input.y !== undefined ? { y: input.y } : {}),
+    ...(input.mark !== undefined ? { mark: input.mark } : {}),
     ...(input.description ? { description: input.description } : {}),
   };
 }
 
 async function swipePoints(
   driver: Driver,
-  input: { x?: number; y?: number; x2?: number; y2?: number; direction?: string; description?: string },
+  input: { x?: number; y?: number; mark?: number; x2?: number; y2?: number; direction?: string; description?: string },
 ): Promise<{ from: Point; to: Point }> {
   if (input.x !== undefined && input.y !== undefined && input.x2 !== undefined && input.y2 !== undefined) {
     return { from: { x: input.x, y: input.y }, to: { x: input.x2, y: input.y2 } };
   }
 
   const direction = (input.direction ?? "up") as "up" | "down" | "left" | "right";
-  if (input.description) {
-    const target = await resolveTarget(driver, { description: input.description });
-    const box = target.grounding?.element?.rect;
+  if (input.description !== undefined || input.mark !== undefined) {
+    const target = await resolveTarget(driver, toTargetOptions(input));
+    const box = (target.element ?? target.grounding?.element)?.rect;
     const span = box ? Math.max(120, Math.min(box.width, box.height) * 0.8) : 400;
     return around(target.relative, direction, span);
   }

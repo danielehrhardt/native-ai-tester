@@ -96,6 +96,12 @@ export interface UiElement {
   enabled: boolean;
   focused?: boolean;
   selected?: boolean;
+  /**
+   * Sequential number drawn on a marked screenshot, assigned in reading order
+   * to the elements worth pointing at. Present only on those elements, so it
+   * doubles as "this is a tap target".
+   */
+  mark?: number;
   children: UiElement[];
 }
 

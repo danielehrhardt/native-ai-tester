@@ -88,11 +88,11 @@ nat screen
 
 ```
 ios · 00008140-…801C · com.example.app · 402x874pt · 34/211 elements
-coordinates are relative 0-1000 (x,y = tap point)
+coordinates are relative 0-1000 (x,y = tap point); #n = the number drawn on `nat screenshot --marks`
 [0] other "Sign in" @500,500 1000x1000
-  [0.0] field placeholder="Email" #login.email @500,420 760x44
-  [0.1] secure-field placeholder="Password" @500,490 760x44
-  [0.2] button "Sign in" @500,806 760x52
+  [0.0] #1 field placeholder="Email" id=login.email @500,420 760x44
+  [0.1] #2 secure-field placeholder="Password" @500,490 760x44
+  [0.2] #3 button "Sign in" @500,806 760x52
 ```
 
 `@500,806` is where to tap. **Coordinates are relative — 0 to 1000 on both axes**, so the
@@ -155,6 +155,75 @@ nat action key back                                  # home, enter, escape, volu
 
 ---
 
+## Seeing the screen
+
+The tree says what is there. Sometimes you need to see it — a game with no
+accessibility tree, a chart, a layout that is *technically* correct and visibly
+wrong. Every one of these hands back a real image an agent can look at.
+
+### Marked screenshots
+
+```bash
+nat screenshot --marks ./shot.png
+```
+
+Every tap target gets a numbered box, and the same numbers appear in
+`nat screen` as `#n`. So a model can look at the picture, pick a number, and act
+on it — no coordinates to work out, no guessing which of three grey rectangles
+is the button:
+
+```bash
+nat action tap  --mark 3
+nat action input --mark 1 --text "hi@example.com" --clear
+nat action swipe --mark 7 --direction left
+```
+
+Marking is deliberately *exclusive*: a settings row gets one number, not three
+for its icon, its label and its chevron — they all tap to the same place, and
+three numbers would read as three choices. A switch inside that row does get its
+own number, because it is separately actionable. `--marks-all` drops the
+exclusivity when you want a full inventory.
+
+`--mark` re-reads the screen before acting, so a stale number fails loudly
+instead of tapping whatever has since moved into that spot.
+
+### Watching live
+
+```bash
+nat watch                 # opens a browser showing the device, updating live
+nat watch --marks --fps 2
+```
+
+A local page at `127.0.0.1:7331` that streams frames while an agent works. This
+is for *you* — it is how you see what the thing is doing without picking up the
+phone. Frames pace themselves by how fast the device answers: about 8/s on a
+simulator, 1–2/s on a real iPhone over USB.
+
+### Seeing across time
+
+A model can only look at still images, so anything that only exists as a
+*change* — a transition, an animation, a flicker, a game — has to become one
+picture:
+
+```bash
+nat record --filmstrip ./frames.png --frames 6 --seconds 3
+```
+
+Six numbered frames on one contact sheet, which reads a whole transition at a
+glance. For a real video file:
+
+```bash
+nat record ./run.mp4 --seconds 15
+```
+
+Simulators and Android use the platform's own recorder and give you proper
+video. A physical iPhone has no screen-recording API reachable from the command
+line, so its frames come from the agent one at a time and are encoded afterwards
+— a timelapse at a few frames a second, and the command tells you so rather than
+pretending otherwise. That path needs `ffmpeg`; the filmstrip needs nothing.
+
+---
+
 ## Use it from a coding agent
 
 This is the main way to use the tool. Install the skill and your agent knows the commands:
@@ -178,6 +247,9 @@ nat mcp serve                    # what the client launches
 ```
 
 The MCP tools and the CLI share one device session, so you can mix them freely.
+`mobile_screenshot` takes `marks: true` and returns the marked image plus a
+legend, and every gesture tool accepts `mark` alongside coordinates and
+descriptions.
 
 ---
 
@@ -320,7 +392,9 @@ lifecycle. There is no Appium server in the middle.
 gestures. Nothing to install on the device.
 
 Both produce the same normalized element shape and the same relative coordinate space, so
-a step written against one platform reads identically on the other.
+a step written against one platform reads identically on the other. That shared space is
+also what makes marking free: an element box is already 0–1000 on both axes, so it lands on
+a screenshot's own pixels without anyone knowing the device's scale factor.
 
 `nat devices connect` does the expensive, stateful work once and records it. Every later
 command is a short-lived process that makes one HTTP or adb call — which is what makes it
@@ -333,13 +407,14 @@ cheap enough to run on every step.
 ```bash
 npm install
 npm run build
-npm test              # 122 tests, no device required
+npm test              # 139 tests, no device required
 npm run typecheck
 node dist/cli.js --help
 ```
 
 The test suite covers the pure logic — coordinate conversion, tree cleaning, description
-matching, both platforms' tree parsers, case storage — so it runs anywhere. Device
+matching, mark selection and drawing, both platforms' tree parsers, case storage — so it
+runs anywhere. Device
 behaviour is verified by hand against a simulator and a real phone.
 
 Contributions welcome. Please keep the two invariants: **relative coordinates everywhere on

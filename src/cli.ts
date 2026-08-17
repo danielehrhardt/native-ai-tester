@@ -16,6 +16,7 @@ import { maybeNotifyUpdate } from "./core/update.js";
 import { version } from "./core/version.js";
 import { registerDeviceCommands } from "./commands/devices.js";
 import { registerScreenCommands } from "./commands/screen.js";
+import { registerViewCommands } from "./commands/view.js";
 import { registerActionCommands } from "./commands/action.js";
 import { registerAppCommands } from "./commands/apps.js";
 import { registerCaseCommands } from "./commands/cases.js";
@@ -37,6 +38,11 @@ Examples:
   $ nat action tap --x 500 --y 320               act on coordinates from \`nat screen\`
   $ nat action tap -d "Blue login button"        …or by description, for games and canvases
   $ nat screen                                   verify the result
+
+  $ nat screenshot --marks ./shot.png            see it, with every tap target numbered
+  $ nat action tap --mark 3                      …then act on a number you can see
+  $ nat record --filmstrip ./frames.png          six frames on one sheet, to read a transition
+  $ nat watch                                    stream the device to a browser, live
 
   $ nat cases create '{"title":"Login","flows":[{"instructions":"sign in","result":"home shows"}]}'
   $ nat run login --report ./report.json         run it autonomously
@@ -71,6 +77,7 @@ async function main(argv: string[]): Promise<void> {
 
   registerDeviceCommands(program);
   registerScreenCommands(program);
+  registerViewCommands(program);
   registerActionCommands(program);
   registerAppCommands(program);
   registerCaseCommands(program);
@@ -107,7 +114,7 @@ function applyGlobalFlags(command: Command): void {
  */
 async function notifyUpdateUnlessNoisy(argv: string[]): Promise<void> {
   const command = argv[2];
-  if (command === "mcp" || command === "update" || process.env.NAT_NO_UPDATE_CHECK) return;
+  if (command === "mcp" || command === "update" || command === "watch" || process.env.NAT_NO_UPDATE_CHECK) return;
   try {
     const config = await loadConfig();
     await maybeNotifyUpdate({

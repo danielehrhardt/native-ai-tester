@@ -24,6 +24,7 @@ import {
 interface CommonTargetFlags {
   x?: string;
   y?: string;
+  mark?: string;
   description?: string;
   index?: string;
   role?: string;
@@ -34,6 +35,7 @@ function targetOptions(flags: CommonTargetFlags): TargetOptions {
   return {
     ...(flags.x !== undefined ? { x: parseNumber(flags.x, "--x")! } : {}),
     ...(flags.y !== undefined ? { y: parseNumber(flags.y, "--y")! } : {}),
+    ...(flags.mark !== undefined ? { mark: parseNumber(flags.mark, "--mark")! } : {}),
     ...(flags.description ? { description: flags.description } : {}),
     ...(flags.index !== undefined ? { index: parseNumber(flags.index, "--index")! } : {}),
     ...(flags.role ? { role: flags.role } : {}),
@@ -46,6 +48,7 @@ function withTargetFlags(command: Command): Command {
   return command
     .option("--x <n>", "horizontal position, 0–1000 (from `nat screen`)")
     .option("--y <n>", "vertical position, 0–1000")
+    .option("-m, --mark <n>", "the number drawn on `nat screenshot --marks`")
     .option("-d, --description <text>", "target by plain-language description instead")
     .option("--index <n>", "pick the Nth match when a description is ambiguous (1-based)")
     .option("--role <role>", "only consider elements of this role (button, field, cell, …)")
@@ -130,7 +133,7 @@ export function registerActionCommands(program: Command): void {
         await driver.tap(target.point);
         where = describeTarget(target);
         // We know exactly what we tapped, so we know exactly how much to clear.
-        clearLength = target.grounding?.element?.value?.length;
+        clearLength = (target.element ?? target.grounding?.element)?.value?.length;
       }
 
       await driver.typeText(flags.text, {
@@ -260,12 +263,12 @@ async function performSwipeOrDrag(driver: Driver, flags: SwipeFlags, kind: "swip
     const distance = parseNumber(flags.distance, "--distance") ?? 0.6;
     ({ from, to } = directionToSwipe(direction, distance));
     label = `${direction} (${from.x},${from.y} → ${to.x},${to.y})`;
-  } else if (flags.description) {
-    // A described swipe centres the gesture on the matched element — that is
-    // what "swipe the photo carousel left" means.
+  } else if (flags.description || flags.mark !== undefined) {
+    // A described or marked swipe centres the gesture on that element — which
+    // is what "swipe the photo carousel left" means.
     const target = await resolveTarget(driver, targetOptions(flags));
-    const inferred = inferDirectionFrom(flags.description);
-    const box = target.grounding?.element?.rect;
+    const inferred = direction ?? inferDirectionFrom(flags.description ?? "");
+    const box = (target.element ?? target.grounding?.element)?.rect;
     const span = box ? Math.max(120, Math.min(box.width, box.height) * 0.8) : 300;
     ({ from, to } = swipeAround(target.relative, inferred, span));
     label = `${describeTarget(target)} ${inferred}`;

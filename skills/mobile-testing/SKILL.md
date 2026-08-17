@@ -1,6 +1,6 @@
 ---
 name: mobile-testing
-description: Drive a real iOS or Android device (or a simulator/emulator) from the terminal to test a mobile app or game — read the screen, tap, swipe, type, verify. Use when asked to test, debug, reproduce, or check a change in a mobile app; when a task mentions a device, simulator, emulator, iOS, Android, React Native, Flutter, KMP, Unity, or a mobile build; or when you need to see what an app actually does rather than what the code says it does.
+description: Drive a real iOS or Android device (or a simulator/emulator) from the terminal to test a mobile app or game — read the screen, see it as an image, tap, swipe, type, verify. Use when asked to test, debug, reproduce, or check a change in a mobile app; when a task mentions a device, simulator, emulator, iOS, Android, React Native, Flutter, KMP, Unity, or a mobile build; when you need to look at how a screen actually renders; or when you need to see what an app really does rather than what the code says it does.
 ---
 
 # Testing mobile apps on a device
@@ -51,11 +51,12 @@ nat screenshot ./shot.png      # a picture, for visual checks
 `nat screen` returns one line per element:
 
 ```
-[0.1.4] button "Sign in" @500,812 760x52
-[0.1.2] field placeholder="Email" @500,420 760x44
+[0.1.4] #3 button "Sign in" @500,812 760x52
+[0.1.2] #1 field placeholder="Email" @500,420 760x44
 ```
 
-`@500,812` is the tap point. **Coordinates are relative: 0–1000 on both axes**, origin
+`@500,812` is the tap point. `#3` is the number drawn on a marked screenshot —
+see "Looking at the screen" below. **Coordinates are relative: 0–1000 on both axes**, origin
 top-left, independent of the device's resolution. The same numbers work on an iPhone SE
 and an iPad.
 
@@ -94,6 +95,43 @@ can't answer and a vision model is configured, it falls back to looking at the
 screenshot. If a description is ambiguous the command says so and lists the candidates —
 re-run with `--index 2` or describe it more precisely.
 
+## Looking at the screen
+
+You are not limited to the tree. When you need to *see* something — a game, a
+canvas, a chart, a layout that is technically correct and visibly wrong, or
+anything where the tree is empty — take a picture:
+
+```bash
+nat screenshot --marks ./shot.png     # then read the image
+```
+
+`--marks` draws a numbered box on every tap target, and those numbers are the
+same `#n` you see in `nat screen`. Look at the image, pick a number, act on it:
+
+```bash
+nat action tap  --mark 3
+nat action input --mark 1 --text "hi@example.com" --clear
+nat action swipe --mark 7 --direction left
+```
+
+This is the shortest path from "I can see the button" to "I tapped the button" —
+no coordinate arithmetic, and nothing to mis-transcribe. Marks are re-resolved
+against a fresh screen read, so a stale number fails loudly rather than tapping
+whatever moved into that spot.
+
+To see something that only exists as a *change* — a transition, an animation, a
+flicker, a game — capture several frames onto one image:
+
+```bash
+nat record --filmstrip ./frames.png --frames 6 --seconds 3
+```
+
+That contact sheet is numbered and readable in a single look, which a burst of
+separate screenshots is not.
+
+If a human wants to watch you work, tell them to run `nat watch` — it streams
+the device to a browser at `127.0.0.1:7331`.
+
 App and system control take no target:
 
 ```bash
@@ -116,7 +154,13 @@ on — don't treat them as failures.
 
 **When an action seems to do nothing**, don't repeat it. Run `nat screen` and look: the
 element may be disabled, covered by an overlay, or below the fold. Scroll with
-`nat action swipe --direction up` and read again.
+`nat action swipe --direction up` and read again. If the tree looks right but the
+behaviour is still wrong, take a marked screenshot — the discrepancy is usually
+visible immediately.
+
+**Judging how something looks** is a job for a screenshot, not the tree. The tree
+will happily report a perfectly-named button that is rendered off-screen, behind
+a modal, or in white-on-white.
 
 **Typing** goes to the focused field. `nat action input` taps first, then types; add
 `--clear` to replace existing text and `--submit` to press enter.

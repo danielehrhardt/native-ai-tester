@@ -12,11 +12,14 @@ import { toDevicePoint } from "../core/coords.js";
 import { ground, type GroundingResult } from "../core/grounding.js";
 import { readScreen } from "../core/screen.js";
 import { debug } from "../core/output.js";
-import type { DevicePoint, Driver, Point, ScreenSize, SwipeDirection } from "../core/types.js";
+import { markedElements } from "../core/annotate.js";
+import type { DevicePoint, Driver, Point, ScreenSize, SwipeDirection, UiElement } from "../core/types.js";
 
 export interface TargetOptions {
   x?: number;
   y?: number;
+  /** The number drawn on a marked screenshot. */
+  mark?: number;
   description?: string;
   index?: number;
   role?: string;
@@ -28,6 +31,8 @@ export interface ResolvedTarget {
   relative: Point;
   screen: ScreenSize;
   grounding?: GroundingResult;
+  /** Set when the target came from `--mark`. */
+  element?: UiElement;
 }
 
 export async function resolveTarget(driver: Driver, options: TargetOptions): Promise<ResolvedTarget> {
@@ -46,11 +51,16 @@ export async function resolveTarget(driver: Driver, options: TargetOptions): Pro
     return { point: toDevicePoint(relative, screen), relative, screen };
   }
 
+  if (options.mark !== undefined) {
+    return await resolveMark(driver, options.mark, screen);
+  }
+
   if (!options.description) {
     throw new NatError("INVALID_ARGUMENT", "No target given", {
       hint:
-        "Point at an element one of two ways:\n" +
+        "Point at an element one of three ways:\n" +
         "  --x 500 --y 320                       coordinates from `nat screen`\n" +
+        "  --mark 12                             the number drawn on `nat screenshot --marks`\n" +
         '  -d "Blue login button at the bottom"   a plain-language description',
     });
   }
@@ -69,6 +79,36 @@ export async function resolveTarget(driver: Driver, options: TargetOptions): Pro
     relative: result.point,
     screen,
     grounding: result,
+  };
+}
+
+/**
+ * Resolve a number from a marked screenshot back to a point.
+ *
+ * The screen is re-read rather than cached, because between taking the picture
+ * and acting on it the UI may have moved. Re-reading costs one round trip and
+ * removes a whole class of "it tapped the wrong row" failures.
+ */
+async function resolveMark(driver: Driver, mark: number, screen: ScreenSize): Promise<ResolvedTarget> {
+  const snapshot = await readScreen(driver, { withApp: false });
+  const match = markedElements(snapshot.elements).find((node) => node.mark === mark);
+
+  if (!match) {
+    const available = markedElements(snapshot.elements);
+    throw new NatError("ELEMENT_NOT_FOUND", `No element is marked ${mark} on the current screen`, {
+      hint:
+        available.length === 0
+          ? "Nothing on this screen is markable. Target it by coordinates from `nat screen`, or by description."
+          : `Marks run 1–${available.length} right now. The screen may have changed since the screenshot — take a fresh one with \`nat screenshot --marks\`.`,
+    });
+  }
+
+  debug(`target: mark ${mark} → ${match.role} ${JSON.stringify(match.label ?? "")} @${match.center.x},${match.center.y}`);
+  return {
+    point: toDevicePoint(match.center, screen),
+    relative: match.center,
+    screen,
+    element: match,
   };
 }
 
@@ -117,6 +157,10 @@ export function parseDirection(value: string | undefined): SwipeDirection | unde
 /** Describe what an action did, for the human-readable one-liner. */
 export function describeTarget(target: ResolvedTarget): string {
   const at = `@${target.relative.x},${target.relative.y}`;
+  if (target.element) {
+    const name = target.element.label ?? target.element.value ?? target.element.identifier;
+    return name ? `${at} — ${target.element.role} ${JSON.stringify(name)}` : at;
+  }
   if (!target.grounding) return at;
   const element = target.grounding.element;
   const name = element?.label ?? element?.value ?? element?.identifier;
